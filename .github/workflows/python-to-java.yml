@@ -1,0 +1,109 @@
+name: Convert Python to Java
+
+on:
+  push:
+    paths:
+      - '**.py'
+
+permissions:
+  contents: write
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Get changed Python files
+        id: changed
+        run: |
+          FILES=$(git diff --name-only --diff-filter=ACM HEAD~1 HEAD -- '*.py' || true)
+          if [ -z "$FILES" ]; then
+            echo "No Python files changed."
+            echo "has_files=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Changed Python files:"
+            echo "$FILES"
+            # Save as multiline output
+            {
+              echo "files<<EOF"
+              echo "$FILES"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+            echo "has_files=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Convert Python files to Java
+        if: steps.changed.outputs.has_files == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
+        run: |
+          while IFS= read -r pyfile; do
+            [ -z "$pyfile" ] && continue
+
+            echo "Converting: $pyfile"
+
+            # Determine output Java file path (same directory, .java extension)
+            dir=$(dirname "$pyfile")
+            basename=$(basename "$pyfile" .py)
+            # Capitalize first letter for Java class name convention
+            classname="$(echo "${basename:0:1}" | tr '[:lower:]' '[:upper:]')${basename:1}"
+            javafile="${dir}/${classname}.java"
+
+            python_code=$(cat "$pyfile")
+
+            # Call GitHub Models API (Claude) to convert Python to Java
+            response=$(curl -s https://models.inference.ai.azure.com/chat/completions \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -d "$(jq -n \
+                --arg code "$python_code" \
+                --arg classname "$classname" \
+                '{
+                  model: "claude-opus-4.6",
+                  messages: [
+                    {
+                      role: "system",
+                      content: "You are a code converter. Convert the given Python code to equivalent Java code. The Java class name must be \($classname). Output ONLY the Java code, no markdown fences, no explanations."
+                    },
+                    {
+                      role: "user",
+                      content: $code
+                    }
+                  ],
+                  temperature: 0.2
+                }')")
+
+            # Extract the Java code from the response
+            java_code=$(echo "$response" | jq -r '.choices[0].message.content // empty')
+
+            if [ -z "$java_code" ]; then
+              echo "WARNING: Failed to convert $pyfile. API response:"
+              echo "$response" | jq .
+              continue
+            fi
+
+            # Remove markdown fences if present
+            java_code=$(echo "$java_code" | sed '/^```java$/d' | sed '/^```$/d')
+
+            mkdir -p "$dir"
+            echo "$java_code" > "$javafile"
+            echo "Created: $javafile"
+          done <<< "${{ steps.changed.outputs.files }}"
+
+      - name: Commit and push Java files
+        if: steps.changed.outputs.has_files == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add '*.java'
+          if git diff --cached --quiet; then
+            echo "No Java files to commit."
+          else
+            git commit -m "auto: convert Python files to Java [skip ci]"
+            git push
+          fi
