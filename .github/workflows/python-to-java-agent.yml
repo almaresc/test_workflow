@@ -1,0 +1,74 @@
+name: Convert Python to Java (Coding Agent)
+
+on:
+  push:
+    paths:
+      - '**.py'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Get changed Python files
+        id: changed
+        run: |
+          FILES=$(git diff --name-only --diff-filter=ACM HEAD~1 HEAD -- '*.py' || true)
+          if [ -z "$FILES" ]; then
+            echo "No Python files changed."
+            echo "has_files=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Changed Python files:"
+            echo "$FILES"
+            {
+              echo "files<<EOF"
+              echo "$FILES"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+            echo "has_files=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create issue for Copilot coding agent
+        if: steps.changed.outputs.has_files == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Build file list for the issue body
+          FILE_LIST=""
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            FILE_LIST="${FILE_LIST}- \`${f}\`"$'\n'
+          done <<< "${{ steps.changed.outputs.files }}"
+
+          FILE_COUNT=$(echo "${{ steps.changed.outputs.files }}" | grep -c '[^[:space:]]')
+          FIRST_FILE=$(echo "${{ steps.changed.outputs.files }}" | head -1)
+
+          BODY="## Convert Python files to Java
+
+The following Python files were added or modified in commit ${{ github.sha }} and need to be converted to equivalent Java code:
+
+${FILE_LIST}
+### Instructions
+
+For each Python file listed above:
+1. Read the Python source code
+2. Create an equivalent Java file **in the same directory**
+3. The Java class name must match the file name with the first letter capitalized (e.g. \`hello.py\` → \`Hello.java\`)
+4. Write idiomatic, working Java code
+5. Do **not** modify or delete the original Python files
+
+Commit with message: \`auto: convert Python files to Java\`"
+
+          gh issue create \
+            --title "Convert Python to Java: ${FIRST_FILE} (${FILE_COUNT} file(s))" \
+            --body "$BODY" \
+            --assignee "copilot"
