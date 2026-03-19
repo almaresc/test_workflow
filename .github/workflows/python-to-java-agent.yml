@@ -53,20 +53,16 @@ jobs:
           FIRST_FILE=$(echo "${{ steps.changed.outputs.files }}" | head -1)
 
           BODY="## Convert Python files to Java
-
-The following Python files were added or modified in commit ${{ github.sha }} and need to be converted to equivalent Java code:
-
-${FILE_LIST}
-### Instructions
-
-For each Python file listed above:
-1. Read the Python source code
-2. Create an equivalent Java file **in the same directory**
-3. The Java class name must match the file name with the first letter capitalized (e.g. \`hello.py\` → \`Hello.java\`)
-4. Write idiomatic, working Java code
-5. Do **not** modify or delete the original Python files
-
-Commit with message: \`auto: convert Python files to Java\`"
+          The following Python files were added or modified in commit ${{ github.sha }} and need to be converted to equivalent Java code:
+          ${FILE_LIST}
+          ### Instructions
+          For each Python file listed above:
+          1. Read the Python source code
+          2. Create an equivalent Java file **in the same directory**
+          3. The Java class name must match the file name with the first letter capitalized (e.g. \`hello.py\` → \`Hello.java\`)
+          4. Write idiomatic, working Java code
+          5. Do **not** modify or delete the original Python files
+          Commit with message: \`auto: convert Python files to Java\`"
 
           gh issue create \
             --title "Convert Python to Java: ${FIRST_FILE} (${FILE_COUNT} file(s))" \
