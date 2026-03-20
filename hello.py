@@ -19,5 +19,5 @@ def fibonacci(n: int) -> list:
 
 if __name__ == "__main__":
     print(greet("World"))
-    print(f"3 + 5 = {add(3, 5)}")
+    print(f"3 + 5 = {add(3, 5)} base")
     print(f"Fibonacci(10) = {fibonacci(10)}")
