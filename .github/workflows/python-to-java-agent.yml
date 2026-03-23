@@ -74,10 +74,22 @@ jobs:
 
           TITLE="Convert Python to Java: ${FIRST_FILE} (${FILE_COUNT} file(s))"
 
-          # Create the issue and assign Copilot in one step
+          # Step 1: Create the issue (without assignee to avoid failure)
           ISSUE_URL=$(gh issue create \
             --title "$TITLE" \
-            --body "$BODY" \
-            --assignee "copilot")
+            --body "$BODY")
 
-          echo "Created and assigned issue: $ISSUE_URL"
+          echo "Created issue: $ISSUE_URL"
+          ISSUE_NUMBER=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
+          echo "issue_number=$ISSUE_NUMBER" >> "$GITHUB_OUTPUT"
+
+          # Step 2: Try to assign Copilot (may fail if not enabled or token lacks permission)
+          if gh issue edit "$ISSUE_NUMBER" --add-assignee "copilot" 2>/dev/null; then
+            echo "✅ Assigned Copilot to issue #${ISSUE_NUMBER}"
+          else
+            echo "::warning::Could not assign 'copilot' to issue #${ISSUE_NUMBER}."
+            echo "::warning::To fix this, either:"
+            echo "::warning::  1. Enable Copilot coding agent in repo Settings → Copilot → Coding agent"
+            echo "::warning::  2. Add a PAT_TOKEN secret with 'repo' scope in Settings → Secrets → Actions"
+            echo "::warning::  3. Manually click 'Assign to Copilot' on the issue in GitHub UI"
+          fi
