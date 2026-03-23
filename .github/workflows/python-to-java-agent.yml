@@ -74,16 +74,12 @@ jobs:
 
           TITLE="Convert Python to Java: ${FIRST_FILE} (${FILE_COUNT} file(s))"
 
-          # Create the issue
+          # Create the issue and assign it to Copilot coding agent
           ISSUE_URL=$(gh issue create \
             --title "$TITLE" \
-            --body "$BODY")
+            --body "$BODY" \
+            --assignee copilot)
 
           echo "Created issue: $ISSUE_URL"
           ISSUE_NUMBER=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
-
-          # Trigger Copilot coding agent by mentioning @copilot in a comment
-          gh issue comment "$ISSUE_NUMBER" \
-            --body "@copilot Please complete the task described in this issue."
-
-          echo "Triggered Copilot on issue #${ISSUE_NUMBER}"
+          echo "Copilot coding agent assigned to issue #${ISSUE_NUMBER}"
