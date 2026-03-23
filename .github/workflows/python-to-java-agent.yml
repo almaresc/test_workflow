@@ -42,7 +42,7 @@ jobs:
         id: create_issue
         if: steps.changed.outputs.has_files == 'true'
         env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN != '' && secrets.PAT_TOKEN || github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           # Build file list for the issue body
           FILE_LIST=""
@@ -74,22 +74,14 @@ jobs:
 
           TITLE="Convert Python to Java: ${FIRST_FILE} (${FILE_COUNT} file(s))"
 
-          # Step 1: Create the issue (without assignee to avoid failure)
+          # Create the issue
           ISSUE_URL=$(gh issue create \
             --title "$TITLE" \
             --body "$BODY")
 
           echo "Created issue: $ISSUE_URL"
           ISSUE_NUMBER=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
-          echo "issue_number=$ISSUE_NUMBER" >> "$GITHUB_OUTPUT"
 
-          # Step 2: Try to assign Copilot (may fail if not enabled or token lacks permission)
-          if gh issue edit "$ISSUE_NUMBER" --add-assignee "copilot" 2>/dev/null; then
-            echo "✅ Assigned Copilot to issue #${ISSUE_NUMBER}"
-          else
-            echo "::warning::Could not assign 'copilot' to issue #${ISSUE_NUMBER}."
-            echo "::warning::To fix this, either:"
-            echo "::warning::  1. Enable Copilot coding agent in repo Settings → Copilot → Coding agent"
-            echo "::warning::  2. Add a PAT_TOKEN secret with 'repo' scope in Settings → Secrets → Actions"
-            echo "::warning::  3. Manually click 'Assign to Copilot' on the issue in GitHub UI"
-          fi
+          # Assign copilot to the issue
+          gh issue edit "$ISSUE_NUMBER" --add-assignee "copilot"
+          echo "Assigned Copilot to issue #${ISSUE_NUMBER}"
