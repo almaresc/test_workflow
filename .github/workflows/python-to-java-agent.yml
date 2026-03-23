@@ -42,7 +42,7 @@ jobs:
         id: create_issue
         if: steps.changed.outputs.has_files == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           # Build file list for the issue body
           FILE_LIST=""
