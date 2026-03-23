@@ -6,8 +6,9 @@ on:
       - '**.py'
 
 permissions:
-  contents: read
+  contents: write
   issues: write
+  pull-requests: write
 
 jobs:
   convert:
@@ -37,7 +38,7 @@ jobs:
             echo "has_files=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Create issue for Copilot coding agent
+      - name: Create issue and assign to Copilot
         if: steps.changed.outputs.has_files == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -53,8 +54,11 @@ jobs:
           FIRST_FILE=$(echo "${{ steps.changed.outputs.files }}" | head -1)
 
           BODY="## Convert Python files to Java
+
           The following Python files were added or modified in commit ${{ github.sha }} and need to be converted to equivalent Java code:
+
           ${FILE_LIST}
+
           ### Instructions
           For each Python file listed above:
           1. Read the Python source code
@@ -62,12 +66,21 @@ jobs:
           3. The Java class name must match the file name with the first letter capitalized (e.g. \`hello.py\` → \`Hello.java\`)
           4. Write idiomatic, working Java code
           5. Do **not** modify or delete the original Python files
-          Commit with message: \`auto: convert Python files to Java\`"
+          6. Commit all changes and open a pull request with title: \`auto: convert Python files to Java\`"
 
-          # Ensure the 'copilot' label exists
-          gh label create "copilot" --description "Assign to Copilot coding agent" --color "1a7f37" 2>/dev/null || true
+          TITLE="Convert Python to Java: ${FIRST_FILE} (${FILE_COUNT} file(s))"
 
-          gh issue create \
-            --title "Convert Python to Java: ${FIRST_FILE} (${FILE_COUNT} file(s))" \
-            --body "$BODY" \
-            --label "copilot"
+          # Create the issue and capture the issue URL
+          ISSUE_URL=$(gh issue create \
+            --title "$TITLE" \
+            --body "$BODY")
+
+          echo "Created issue: $ISSUE_URL"
+
+          # Extract issue number from URL
+          ISSUE_NUMBER=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
+
+          # Assign the issue to Copilot coding agent
+          gh issue edit "$ISSUE_NUMBER" --add-assignee "copilot"
+
+          echo "Assigned issue #${ISSUE_NUMBER} to Copilot coding agent"
