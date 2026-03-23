@@ -64,7 +64,10 @@ jobs:
           5. Do **not** modify or delete the original Python files
           Commit with message: \`auto: convert Python files to Java\`"
 
+          # Ensure the 'copilot' label exists
+          gh label create "copilot" --description "Assign to Copilot coding agent" --color "1a7f37" 2>/dev/null || true
+
           gh issue create \
             --title "Convert Python to Java: ${FIRST_FILE} (${FILE_COUNT} file(s))" \
             --body "$BODY" \
-            --assignee "copilot"
+            --label "copilot"
