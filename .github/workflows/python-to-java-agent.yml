@@ -38,10 +38,11 @@ jobs:
             echo "has_files=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Create issue and assign to Copilot
+      - name: Create issue for Copilot coding agent
+        id: create_issue
         if: steps.changed.outputs.has_files == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           # Build file list for the issue body
           FILE_LIST=""
@@ -62,35 +63,21 @@ jobs:
           ### Instructions
           For each Python file listed above:
           1. Read the Python source code
-          2. Create an equivalent Java file **in the same directory**
-          3. The Java class name must match the file name with the first letter capitalized (e.g. \`hello.py\` → \`Hello.java\`)
-          4. Write idiomatic, working Java code
-          5. Do **not** modify or delete the original Python files
-          6. Commit all changes and open a pull request with title: \`auto: convert Python files to Java\`"
+          2. Create an equivalent Java file inside the \`java_translation/\` subfolder
+          3. The Java class name must match the file name with the first letter capitalized (e.g. \`hello.py\` → \`java_translation/Hello.java\`)
+          4. Create the \`java_translation/\` directory if it does not exist
+          5. Write idiomatic, working Java code
+          6. Do **not** modify or delete the original Python files
+          7. Use Claude Opus 4.6 as the model
+
+          Commit with message: \`auto: convert Python files to Java\`"
 
           TITLE="Convert Python to Java: ${FIRST_FILE} (${FILE_COUNT} file(s))"
 
-          # Create the issue and capture the issue URL
+          # Create the issue and assign Copilot in one step
           ISSUE_URL=$(gh issue create \
             --title "$TITLE" \
-            --body "$BODY")
+            --body "$BODY" \
+            --assignee "copilot")
 
-          echo "Created issue: $ISSUE_URL"
-
-          # Extract issue number from URL
-          ISSUE_NUMBER=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
-
-          # Assign the issue to Copilot coding agent via REST API
-          # This requires Copilot coding agent to be enabled in the repo settings
-          HTTP_STATUS=$(gh api \
-            --method POST \
-            -H "Accept: application/vnd.github+json" \
-            "/repos/${{ github.repository }}/issues/${ISSUE_NUMBER}/assignees" \
-            -f "assignees[]=copilot" \
-            2>&1) && {
-            echo "Assigned issue #${ISSUE_NUMBER} to Copilot coding agent"
-          } || {
-            echo "::warning::Could not assign Copilot to issue #${ISSUE_NUMBER}."
-            echo "::warning::Make sure Copilot coding agent is enabled: Settings → Copilot → Coding agent"
-            echo "::warning::You can manually assign 'copilot' to issue #${ISSUE_NUMBER} from the GitHub UI."
-          }
+          echo "Created and assigned issue: $ISSUE_URL"
