@@ -82,6 +82,21 @@ jobs:
           echo "Created issue: $ISSUE_URL"
           ISSUE_NUMBER=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
 
-          # Assign copilot to the issue
-          gh issue edit "$ISSUE_NUMBER" --add-assignee "copilot"
+          # Assign copilot to the issue via REST API
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${{ github.repository }}/issues/${ISSUE_NUMBER}/assignees" \
+            -f 'assignees[]=copilot' || {
+            echo "::warning::REST API assignment failed. Trying alternative..."
+            # Alternative: use the Copilot-specific assignment endpoint
+            gh api \
+              --method POST \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/${{ github.repository }}/issues/${ISSUE_NUMBER}/assignees" \
+              --input - <<< '{"assignees":["copilot[bot]"]}'
+          } || {
+            echo "::error::Could not assign Copilot. Please assign manually via the 'Assign to Copilot' button."
+            exit 1
+          }
           echo "Assigned Copilot to issue #${ISSUE_NUMBER}"
