@@ -41,7 +41,7 @@ jobs:
         if: steps.changed.outputs.has_files == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
-          MODEL_NAME: claude-opus-4
+          MODEL_NAME: gpt-5
         run: |
           while IFS= read -r pyfile; do
             [ -z "$pyfile" ] && continue
