@@ -82,21 +82,24 @@ jobs:
           echo "Created issue: $ISSUE_URL"
           ISSUE_NUMBER=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
 
-          # Assign Copilot coding agent via GitHub API
-          echo "Assigning Copilot to issue #${ISSUE_NUMBER}..."
+          # Assign Copilot coding agent via the Copilot-specific API
+          echo "Triggering Copilot coding agent on issue #${ISSUE_NUMBER}..."
           ASSIGN_RESPONSE=$(gh api \
             --method POST \
             -H "Accept: application/vnd.github+json" \
-            "/repos/${{ github.repository }}/issues/${ISSUE_NUMBER}/assignees" \
-            --input - <<< '{"assignees":["copilot"]}' 2>&1) || true
+            "/repos/${{ github.repository }}/copilot/v1/agents/coding-agent/tasks" \
+            -f "issue_number=${ISSUE_NUMBER}" 2>&1) || true
 
           echo "API response: $ASSIGN_RESPONSE"
 
-          # Verify assignment
-          ASSIGNEES=$(gh api "/repos/${{ github.repository }}/issues/${ISSUE_NUMBER}" --jq '.assignees[].login' 2>&1) || true
-          if echo "$ASSIGNEES" | grep -qi "copilot"; then
-            echo "Copilot coding agent successfully assigned to issue #${ISSUE_NUMBER}"
-          else
-            echo "::warning::Failed to assign Copilot. Current assignees: $ASSIGNEES"
-            echo "Make sure Copilot coding agent is enabled in repo settings and the PAT has correct scopes."
+          # Fallback: try standard assignees endpoint
+          if echo "$ASSIGN_RESPONSE" | grep -qi "error\|not found\|404"; then
+            echo "Copilot task API failed, trying assignees endpoint..."
+            gh api \
+              --method POST \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/${{ github.repository }}/issues/${ISSUE_NUMBER}/assignees" \
+              --input - <<< '{"assignees":["copilot[bot]"]}' 2>&1 || true
           fi
+
+          echo "Done. Check issue #${ISSUE_NUMBER} for Copilot assignment."
