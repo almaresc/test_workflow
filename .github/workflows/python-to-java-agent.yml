@@ -42,8 +42,28 @@ jobs:
         id: create_issue
         if: steps.changed.outputs.has_files == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::PAT_TOKEN is not configured."
+            echo "Create a classic PAT with repo scope, or a fine-grained token with read access to metadata and read/write access to actions, contents, issues, and pull requests."
+            exit 1
+          fi
+
+          OWNER="${{ github.repository_owner }}"
+          REPO="${{ github.event.repository.name }}"
+
+          # Copilot must be available as an assignable actor for this repository and token.
+          if ! gh api graphql -f query='query($owner:String!, $repo:String!) { repository(owner:$owner, name:$repo) { suggestedActors(capabilities:[CAN_BE_ASSIGNED], first:100) { nodes { login } } } }' -F owner="$OWNER" -F repo="$REPO" | grep -q 'copilot-swe-agent'; then
+            echo "::error::Copilot coding agent is not assignable for ${OWNER}/${REPO} with the configured PAT_TOKEN."
+            echo "Checklist:"
+            echo "  1. Ensure the PAT belongs to a user with Copilot Pro, Pro+, Business, or Enterprise"
+            echo "  2. Ensure Copilot coding agent is enabled for this repository/account"
+            echo "  3. Check https://github.com/settings/copilot/features for personal repositories"
+            echo "  4. Recreate PAT_TOKEN with the required scopes/permissions if needed"
+            exit 1
+          fi
+
           # Build file list for the issue body
           FILE_LIST=""
           while IFS= read -r f; do
@@ -89,8 +109,8 @@ jobs:
           gh issue edit "$ISSUE_NUMBER" --add-assignee "@copilot" || {
             echo "::error::Failed to assign Copilot to issue #${ISSUE_NUMBER}."
             echo "Checklist:"
-            echo "  1. Go to repo Settings > Copilot > Coding agent and enable it"
-            echo "  2. Ensure Copilot coding agent is available for this repository/org"
+            echo "  1. Confirm PAT_TOKEN belongs to a Copilot-licensed user"
+            echo "  2. Confirm Copilot is visible in the issue assignees list on GitHub.com"
             echo "  3. Note: @copilot assignment is not supported on GitHub Enterprise Server"
             exit 1
           }
