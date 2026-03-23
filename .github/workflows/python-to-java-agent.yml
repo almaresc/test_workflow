@@ -42,7 +42,7 @@ jobs:
         id: create_issue
         if: steps.changed.outputs.has_files == 'true'
         env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           # Build file list for the issue body
           FILE_LIST=""
@@ -85,13 +85,13 @@ jobs:
           # Assign Copilot coding agent to the issue
           echo "Assigning Copilot coding agent to issue #${ISSUE_NUMBER}..."
 
-          # Use gh issue edit to assign copilot
-          gh issue edit "$ISSUE_NUMBER" --add-assignee "copilot" || {
+          # GitHub CLI uses the special assignee value @copilot for Copilot coding agent.
+          gh issue edit "$ISSUE_NUMBER" --add-assignee "@copilot" || {
             echo "::error::Failed to assign Copilot to issue #${ISSUE_NUMBER}."
             echo "Checklist:"
             echo "  1. Go to repo Settings > Copilot > Coding agent and enable it"
-            echo "  2. Ensure PAT_TOKEN has scopes: repo, copilot"
-            echo "  3. Update the PAT_TOKEN secret in the repo"
+            echo "  2. Ensure Copilot coding agent is available for this repository/org"
+            echo "  3. Note: @copilot assignment is not supported on GitHub Enterprise Server"
             exit 1
           }
 
