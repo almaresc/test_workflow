@@ -76,8 +76,7 @@ jobs:
                       role: "user",
                       content: $code
                     }
-                  ],
-                  temperature: 0.2
+                  ]
                 }')")
 
             # Extract the Java code from the response
