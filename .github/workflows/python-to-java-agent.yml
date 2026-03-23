@@ -74,12 +74,19 @@ jobs:
 
           TITLE="Convert Python to Java: ${FIRST_FILE} (${FILE_COUNT} file(s))"
 
-          # Create the issue and assign it to Copilot coding agent
+          # Create the issue
           ISSUE_URL=$(gh issue create \
             --title "$TITLE" \
-            --body "$BODY" \
-            --assignee copilot)
+            --body "$BODY")
 
           echo "Created issue: $ISSUE_URL"
           ISSUE_NUMBER=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
+
+          # Assign Copilot coding agent via GitHub API
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${{ github.repository }}/issues/${ISSUE_NUMBER}/assignees" \
+            -f "assignees[]=copilot"
+
           echo "Copilot coding agent assigned to issue #${ISSUE_NUMBER}"
