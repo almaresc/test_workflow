@@ -80,7 +80,17 @@ jobs:
           # Extract issue number from URL
           ISSUE_NUMBER=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
 
-          # Assign the issue to Copilot coding agent
-          gh issue edit "$ISSUE_NUMBER" --add-assignee "copilot"
-
-          echo "Assigned issue #${ISSUE_NUMBER} to Copilot coding agent"
+          # Assign the issue to Copilot coding agent via REST API
+          # This requires Copilot coding agent to be enabled in the repo settings
+          HTTP_STATUS=$(gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${{ github.repository }}/issues/${ISSUE_NUMBER}/assignees" \
+            -f "assignees[]=copilot" \
+            2>&1) && {
+            echo "Assigned issue #${ISSUE_NUMBER} to Copilot coding agent"
+          } || {
+            echo "::warning::Could not assign Copilot to issue #${ISSUE_NUMBER}."
+            echo "::warning::Make sure Copilot coding agent is enabled: Settings → Copilot → Coding agent"
+            echo "::warning::You can manually assign 'copilot' to issue #${ISSUE_NUMBER} from the GitHub UI."
+          }
