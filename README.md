@@ -6,12 +6,14 @@
 
 **File:** `.github/workflows/python-to-java.yml`
 
-Converte automaticamente i file Python modificati in equivalenti file Java usando l'API di GitHub Models (modello Claude). Il workflow:
+Converte automaticamente i file Python modificati in equivalenti file Java usando l'API di GitHub Models. Il workflow:
 
 1. Si attiva ad ogni push che modifica file `.py`
 2. Rileva i file Python aggiunti o modificati nell'ultimo commit
 3. Per ogni file, chiama l'API di GitHub Models per generare il codice Java equivalente
 4. Committa e pusha i file `.java` direttamente sul branch
+
+Il workflow usa di default il modello `gpt-5-chat`, configurato nella variabile d'ambiente `MODEL_NAME` dello step di conversione.
 
 **Configurazione:**
 

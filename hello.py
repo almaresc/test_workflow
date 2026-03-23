@@ -18,6 +18,6 @@ def fibonacci(n: int) -> list:
 
 
 if __name__ == "__main__":
-    print(greet("World"))
-    print(f"3 + 5 = {add(3, 5)} base")
+    print(greet("Test Opus"))
+    print(f"3 + 5 = {add(3, 5)} base base")
     print(f"Fibonacci(10) = {fibonacci(10)}")

@@ -41,6 +41,7 @@ jobs:
         if: steps.changed.outputs.has_files == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
+          MODEL_NAME: claude-opus-4
         run: |
           while IFS= read -r pyfile; do
             [ -z "$pyfile" ] && continue
@@ -63,8 +64,9 @@ jobs:
               -d "$(jq -n \
                 --arg code "$python_code" \
                 --arg classname "$classname" \
+                --arg model "$MODEL_NAME" \
                 '{
-                  model: "claude-opus-4.6",
+                  model: $model,
                   messages: [
                     {
                       role: "system",
