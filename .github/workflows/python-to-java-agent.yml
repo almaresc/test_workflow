@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'to_translate/**/*.java'
+      - 'translated/**/*.py'
   workflow_dispatch:
 
 permissions:
@@ -20,7 +21,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Find changed Java files to translate
+      - name: Find Java files that need translation
         id: files
         run: |
           set -euo pipefail
@@ -43,19 +44,41 @@ jobs:
             fi
           fi
 
-          mapfile -t FILES < <(
+          declare -A FILE_REASONS=()
+
+          while IFS=$'\t' read -r change_type source_file; do
+            [ -z "$change_type" ] && continue
+            [ -z "$source_file" ] && continue
+            FILE_REASONS["$source_file"]="$change_type"
+          done < <(
             git diff --name-status --diff-filter=AM "$BASE_REF" "$HEAD_REF" |
-            awk '$1 ~ /^(A|M)$/ && $2 ~ /^to_translate\/.*\.java$/ { print $1 "\t" $2 }' |
-            sort -k2
+            awk '$1 ~ /^(A|M)$/ && $2 ~ /^to_translate\/.*\.java$/ { print $1 "\t" $2 }'
+          )
+
+          while IFS= read -r source_file; do
+            [ -z "$source_file" ] && continue
+
+            relative_path="${source_file#to_translate/}"
+            target_file="translated/${relative_path%.java}.py"
+
+            if [ ! -f "$target_file" ] && [ -z "${FILE_REASONS[$source_file]+x}" ]; then
+              FILE_REASONS["$source_file"]="N"
+            fi
+          done < <(find to_translate -type f -name '*.java' | sort)
+
+          mapfile -t FILES < <(
+            for source_file in "${!FILE_REASONS[@]}"; do
+              printf '%s\t%s\n' "${FILE_REASONS[$source_file]}" "$source_file"
+            done | sort -k2
           )
 
           if [ "${#FILES[@]}" -eq 0 ]; then
-            echo "No new or modified Java files found under to_translate/."
+            echo "No Java files need translation."
             echo "has_files=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          printf 'Found %s new or modified Java file(s):\n' "${#FILES[@]}"
+          printf 'Found %s Java file(s) that need translation:\n' "${#FILES[@]}"
           printf '%s\n' "${FILES[@]}"
 
           {
@@ -107,10 +130,14 @@ jobs:
               change_label="new"
               objective_line='Translate the newly added Java source file below into Python code designed for Spark workloads.'
               target_instruction="2. Create the translated Python file at ${target_file}."
-            else
+            elif [ "$change_type" = "M" ]; then
               change_label="modified"
               objective_line='Update the Python Spark translation for the modified Java source file below.'
               target_instruction="2. Override the existing translated Python file at ${target_file} with the updated translation."
+            else
+              change_label="missing-translation"
+              objective_line='Create the missing Python Spark translation for the Java source file below.'
+              target_instruction="2. Create the translated Python file at ${target_file} because no translated version exists yet."
             fi
 
             existing_count=$(gh issue list \
